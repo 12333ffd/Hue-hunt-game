@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hue Hunt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0F4; --ink:#171A21; --muted:#586071; --card:#FFFFFF; --line:#D3D8E1;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#171A21; --ink:#EEF0F4; --muted:#9AA2B1; --card:#222732; --line:#323949; }
+}
+:root[data-theme="dark"]{ --bg:#171A21; --ink:#EEF0F4; --muted:#9AA2B1; --card:#222732; --line:#323949; }
+html{ height:100%; scroll-padding-top:env(safe-area-inset-top,0px); }
+*{ box-sizing:border-box; }
+body{
+  margin:0; height:100%; background:var(--bg); color:var(--ink);
+  font:400 17px/1.45 "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+.hidden{ display:none !important; }
+button{ font:inherit; color:inherit; cursor:pointer; }
+button:focus-visible{ outline:3px solid #3B7BFF; outline-offset:2px; }
+
+/* ---------- start screen ---------- */
+#start{ height:100%; display:flex; flex-direction:column; justify-content:center; overflow:hidden; }
+.fanwrap{ --L:min(34vh,56vw,320px); position:relative; flex:0 0 auto; height:calc(var(--L) + 28px); overflow:hidden; }
+.fan{ position:absolute; left:50%; bottom:0; width:0; height:0; }
+.fan::after{ content:""; position:absolute; left:-7px; top:-24px; width:14px; height:14px; border-radius:50%; background:var(--ink); z-index:20; }
+.pchip{
+  position:absolute; bottom:0; left:calc(var(--L) * -0.15); width:calc(var(--L) * 0.3); height:var(--L);
+  background:var(--c); border:4px solid #fff; border-radius:9px 9px 4px 4px;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);
+  transform-origin:50% 100%; transform:rotate(0deg);
+  transition:transform .95s cubic-bezier(.2,.8,.2,1) calc(var(--i) * 45ms);
+}
+.fan.open .pchip{ transform:rotate(var(--r)); }
+.intro{ width:100%; max-width:520px; margin:0 auto; padding:22px 24px 8px; }
+h1{ margin:0 0 12px; font-weight:800; font-size:clamp(46px,13vw,78px); line-height:.95; letter-spacing:-.035em; }
+.lede{ margin:0 0 22px; color:var(--muted); max-width:36ch; }
+.actions{ display:flex; flex-wrap:wrap; gap:10px; }
+.btn{ padding:14px 20px; border:1.5px solid var(--ink); background:transparent; border-radius:999px; font-weight:600; }
+.btn.primary{ background:var(--ink); color:var(--bg); }
+.note{ min-height:1.4em; margin:14px 0 0; color:#C2362F; font-size:15px; }
+:root[data-theme="dark"] .note{ color:#FF8B84; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .note{ color:#FF8B84; } }
+.best{ margin:6px 0 0; color:var(--muted); font-size:15px; }
+.best strong{ color:var(--ink); }
+
+/* ---------- game ---------- */
+#game{ position:fixed; inset:0; z-index:5; background:#000; overflow:hidden; }
+#view{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+.vid{ position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
+.hud{
+  position:absolute; inset:0; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 14px calc(env(safe-area-inset-bottom,0px) + 14px);
+}
+.bar{ height:7px; border-radius:4px; background:rgba(255,255,255,.28); overflow:hidden; box-shadow:0 0 0 1px rgba(0,0,0,.25); }
+#timeFill{ height:100%; width:100%; background:#fff; transform-origin:0 50%; }
+#timeFill.low{ background:#FF5A5F; }
+.row{ display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
+.pill{
+  background:rgba(255,255,255,.93); color:#171A21; border:0; border-radius:999px; padding:7px 13px; min-height:36px;
+  font-weight:600; font-size:15px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 10px rgba(0,0,0,.25);
+}
+.pill b{ font-weight:800; }
+.lives{ display:inline-flex; gap:5px; }
+.lives i{ width:11px; height:11px; border-radius:50%; background:#171A21; display:block; }
+.lives i.off{ background:transparent; box-shadow:inset 0 0 0 2px #171A21; opacity:.45; }
+.tools{
+  position:absolute; right:14px; top:calc(env(safe-area-inset-top,0px) + 62px);
+  display:flex; flex-direction:column; gap:8px; align-items:flex-end; pointer-events:auto;
+}
+.tools .pill{ min-height:40px; min-width:64px; justify-content:center; }
+.chipcard{
+  pointer-events:none; display:flex; width:100%; max-width:440px; margin:0 auto; background:#fff; color:#171A21;
+  border-radius:14px; overflow:hidden; box-shadow:0 10px 34px rgba(0,0,0,.4);
+}
+.swatch{ width:104px; min-height:104px; flex:0 0 auto; background:var(--t,#888); border-right:1px solid rgba(0,0,0,.12); }
+.info{ flex:1; padding:12px 16px 14px; min-width:0; }
+.cname{ margin:0; font-weight:800; font-size:24px; line-height:1.1; letter-spacing:-.01em; }
+.hint{ margin:3px 0 0; color:#586071; font-size:15px; }
+.meter{ position:relative; height:7px; margin-top:12px; border-radius:4px; background:#E3E6EC; }
+.meter i{ position:absolute; left:0; top:0; bottom:0; width:0; border-radius:4px; background:#171A21; }
+.meter.hit i{ background:#1E9E5A; }
+.meter b{ position:absolute; top:-4px; bottom:-4px; width:2px; background:#171A21; border-radius:1px; }
+.toast{
+  position:absolute; left:50%; top:40%; transform:translate(-50%,-50%) scale(.92); opacity:0; pointer-events:none;
+  background:#fff; color:#171A21; border-radius:16px; padding:14px 20px; font-weight:800; font-size:26px; line-height:1.1;
+  display:flex; align-items:center; gap:12px; box-shadow:0 12px 40px rgba(0,0,0,.45);
+  transition:opacity .18s ease, transform .22s cubic-bezier(.2,.9,.3,1.2); white-space:nowrap;
+}
+.toast.on{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+.toast .dot{ width:22px; height:22px; border-radius:50%; background:var(--t,#888); box-shadow:inset 0 0 0 2px rgba(0,0,0,.2); }
+.toast small{ font-size:20px; font-weight:600; color:#1E9E5A; }
+.overlay{
+  position:absolute; inset:0; background:rgba(12,14,20,.72); display:flex; align-items:center; justify-content:center; padding:24px; z-index:10;
+  padding-top:calc(env(safe-area-inset-top,0px) + 24px); padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px);
+}
+.card{ background:#fff; color:#171A21; border-radius:18px; padding:26px 24px 22px; width:100%; max-width:360px; }
+.card h2{ margin:0 0 6px; font-size:32px; line-height:1; letter-spacing:-.02em; font-weight:800; }
+.card p{ margin:0 0 18px; color:#586071; }
+.card .actions{ gap:10px; }
+.card .btn{ border-color:#171A21; color:#171A21; }
+.card .btn.primary{ background:#171A21; color:#fff; }
+
+@media (prefers-reduced-motion: reduce){
+  .pchip{ transition:none; }
+  .toast{ transition:none; }
+}
+</style>
+</head>
+<body>
+
+<main id="start">
+  <div class="fanwrap" aria-hidden="true"><div class="fan" id="fan"></div></div>
+  <div class="intro">
+    <h1>Hue Hunt</h1>
+    <p class="lede">You’ll get a color. Find something that matches it, and hold your camera steady until it locks in.</p>
+    <div class="actions">
+      <button class="btn primary" id="btnCam">Play with my camera</button>
+      <button class="btn" id="btnDemo">Try the demo scene</button>
+    </div>
+    <p class="note" id="msg" role="status"></p>
+    <p class="best">Best score <strong id="best">0</strong></p>
+  </div>
+</main>
+
+<section id="game" class="hidden" aria-label="Game">
+  <canvas id="view"></canvas>
+  <video id="vid" class="vid" playsinline muted autoplay></video>
+
+  <div class="hud">
+    <div>
+      <div class="bar"><div id="timeFill"></div></div>
+      <div class="row">
+        <span class="pill">Score <b id="score">0</b></span>
+        <span class="pill">Round <b id="round">1</b></span>
+        <span class="pill lives" id="lives" aria-label="Lives left"></span>
+      </div>
+    </div>
+    <div class="chipcard" id="chipcard">
+      <div class="swatch" id="swatch"></div>
+      <div class="info">
+        <p class="cname" id="cname">Find</p>
+        <p class="hint" id="hint" aria-live="polite">Get ready</p>
+        <div class="meter" id="meter"><i id="meterFill"></i><b id="notch"></b></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tools">
+    <button class="pill" id="btnFlip">Flip</button>
+    <button class="pill" id="btnSkip">Skip</button>
+    <button class="pill" id="btnMute">Sound on</button>
+    <button class="pill" id="btnQuit">Quit</button>
+  </div>
+
+  <div class="toast" id="toast" role="status"><span class="dot"></span><span id="toastText"></span></div>
+
+  <div class="overlay hidden" id="over">
+    <div class="card">
+      <h2>Out of lives</h2>
+      <p id="overText"></p>
+      <div class="actions">
+        <button class="btn primary" id="btnAgain">Play again</button>
+        <button class="btn" id="btnHome">Back to start</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- palette ---------- */
+const PALETTE = [
+  { n: "Red",      c: [205, 40, 45],   k: "c" },
+  { n: "Orange",   c: [240, 130, 30],  k: "c" },
+  { n: "Yellow",   c: [245, 205, 40],  k: "c" },
+  { n: "Lime",     c: [160, 205, 50],  k: "c" },
+  { n: "Green",    c: [50, 150, 75],   k: "c" },
+  { n: "Teal",     c: [20, 150, 150],  k: "c" },
+  { n: "Sky blue", c: [110, 185, 235],k: "c" },
+  { n: "Blue",     c: [40, 90, 200],   k: "c" },
+  { n: "Navy",     c: [25, 40, 100],   k: "c" },
+  { n: "Purple",   c: [120, 70, 170],  k: "c" },
+  { n: "Pink",     c: [240, 130, 170], k: "c" },
+  { n: "Brown",    c: [120, 80, 50],   k: "c" },
+  { n: "White",    c: [240, 240, 240], k: "n" },
+  { n: "Gray",     c: [130, 130, 130], k: "n" },
+  { n: "Black",    c: [30, 30, 30],    k: "n" }
+];
+
+/* ---------- color math ---------- */
+function rgb2lab(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  r = r > .04045 ? Math.pow((r + .055) / 1.055, 2.4) : r / 12.92;
+  g = g > .04045 ? Math.pow((g + .055) / 1.055, 2.4) : g / 12.92;
+  b = b > .04045 ? Math.pow((b + .055) / 1.055, 2.4) : b / 12.92;
+  const x = (r * .4124 + g * .3576 + b * .1805) / .95047;
+  const y = (r * .2126 + g * .7152 + b * .0722);
+  const z = (r * .0193 + g * .1192 + b * .9505) / 1.08883;
+  const f = t => t > .008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+function dE(a, b) {
+  const dl = (a[0] - b[0]) * .55, da = a[1] - b[1], db = a[2] - b[2];
+  return Math.sqrt(dl * dl + da * da + db * db);
+}
+function rgb2hsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  let h = 0, s = 0;
+  if (mx !== mn) {
+    const d = mx - mn;
+    s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+    if (mx === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  return [h, s, l];
+}
+function hsl2rgb(h, s, l) {
+  h = ((h % 360) + 360) % 360 / 360;
+  if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+  const q = l < .5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+  const f = t => {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  return [Math.round(f(h + 1 / 3) * 255), Math.round(f(h) * 255), Math.round(f(h - 1 / 3) * 255)];
+}
+function jitter(c, kind) {
+  let [h, s, l] = rgb2hsl(c[0], c[1], c[2]);
+  if (kind === "c") { h += rand(-6, 6); s = clamp(s + rand(-.08, .08), 0, 1); }
+  l = clamp(l + rand(-.08, .08), .1, .9);
+  return hsl2rgb(h, s, l);
+}
+const css = c => "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")";
+
+/* ---------- audio (layered, no chiptune) ---------- */
+let ac = null, master = null, verb = null, noiseBuf = null, humG = null, humF = null, humA = null, humB = null, muted = false, shaper = null;
+function initAudio() {
+  if (ac) { if (ac.state === "suspended") ac.resume(); return; }
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    ac = new AC();
+    master = ac.createGain(); master.gain.value = muted ? 0 : .8;
+    const comp = ac.createDynamicsCompressor();
+    master.connect(comp); comp.connect(ac.destination);
+    const nb = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), nd = nb.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    noiseBuf = nb;
+    const len = Math.floor(ac.sampleRate * 1.6), ib = ac.createBuffer(2, len, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ib.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
+    }
+    verb = ac.createConvolver(); verb.buffer = ib;
+    const vg = ac.createGain(); vg.gain.value = .4; verb.connect(vg); vg.connect(master);
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) curve[i] = Math.tanh(((i / 255) * 2 - 1) * 3);
+    shaper = curve;
+    // lock hum: two detuned voices through a lowpass
+    humG = ac.createGain(); humG.gain.value = 0;
+    humF = ac.createBiquadFilter(); humF.type = "lowpass"; humF.frequency.value = 1100;
+    humA = ac.createOscillator(); humA.type = "triangle"; humA.frequency.value = 196;
+    humB = ac.createOscillator(); humB.type = "sine"; humB.frequency.value = 196; humB.detune.value = 9;
+    humA.connect(humF); humB.connect(humF); humF.connect(humG); humG.connect(master);
+    humA.start(); humB.start();
+  } catch (e) { ac = null; }
+}
+function out(send) {
+  const g = ac.createGain(); g.connect(master);
+  if (send) { const s = ac.createGain(); s.gain.value = send; g.connect(s); s.connect(verb); }
+  return g;
+}
+function env(g, t, a, d, peak) {
+  const p = g.gain;
+  p.setValueAtTime(.0001, t);
+  p.exponentialRampToValueAtTime(Math.max(peak, .0002), t + a);
+  p.exponentialRampToValueAtTime(.0001, t + a + d);
+}
+function osc(type, f, t, dur, dest, cents) {
+  const o = ac.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t);
+  if (cents) o.detune.value = cents;
+  o.connect(dest); o.start(t); o.stop(t + dur + .05); return o;
+}
+function noise(t, dur, dest, opt) {
+  opt = opt || {};
+  const s = ac.createBufferSource(); s.buffer = noiseBuf;
+  const f = ac.createBiquadFilter(); f.type = opt.type || "bandpass";
+  f.frequency.setValueAtTime(opt.f || 2000, t);
+  if (opt.f2) f.frequency.exponentialRampToValueAtTime(opt.f2, t + dur);
+  f.Q.value = opt.q || 1;
+  s.connect(f); f.connect(dest); s.start(t, Math.random() * 1.4); s.stop(t + dur + .05);
+}
+function bell(t, f, vol) {
+  const o = out(.55), g = ac.createGain(); g.connect(o); env(g, t, .004, 1.2, vol);
+  const car = ac.createOscillator(); car.type = "sine"; car.frequency.value = f;
+  const mod = ac.createOscillator(); mod.type = "sine"; mod.frequency.value = f * 2.76;
+  const mg = ac.createGain(); mg.gain.setValueAtTime(f * 1.6, t); mg.gain.exponentialRampToValueAtTime(1, t + .7);
+  mod.connect(mg); mg.connect(car.frequency); car.connect(g);
+  car.start(t); mod.start(t); car.stop(t + 1.4); mod.stop(t + 1.4);
+  const g2 = ac.createGain(); g2.connect(o); env(g2, t, .003, .5, vol * .35); osc("sine", f * 2, t, .6, g2, rand(-6, 6));
+  const g3 = ac.createGain(); g3.connect(o); env(g3, t, .001, .05, vol * .6); noise(t, .06, g3, { type: "highpass", f: 3500, q: .7 });
+}
+const sfx = {
+  win() {
+    if (!ac) return; const t = ac.currentTime + .01;
+    const base = 392 * Math.pow(2, pick([0, 2, 4, 7, 9]) / 12) * Math.pow(2, rand(-6, 6) / 1200);
+    bell(t, base, .22); bell(t + .1, base * 1.5, .2); bell(t + .2, base * 2, .16);
+    const g = out(0); env(g, t, .003, .22, .5);
+    const o = osc("sine", 150, t, .3, g); o.frequency.exponentialRampToValueAtTime(48, t + .2);
+  },
+  fail() {
+    if (!ac) return; const t = ac.currentTime + .01, o = out(.4);
+    const g = ac.createGain(); g.connect(o); env(g, t, .01, .55, .3);
+    const ws = ac.createWaveShaper(); ws.curve = shaper; ws.connect(g);
+    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.setValueAtTime(700, t);
+    lp.frequency.exponentialRampToValueAtTime(110, t + .5); lp.connect(ws);
+    const f = rand(88, 104);
+    [osc("sawtooth", f, t, .6, lp), osc("sawtooth", f * 1.012, t, .6, lp), osc("square", f * .5, t, .6, lp)]
+      .forEach(x => x.frequency.exponentialRampToValueAtTime(f * .6, t + .5));
+    const gn = ac.createGain(); gn.connect(o); env(gn, t, .001, .3, .3);
+    noise(t, .32, gn, { type: "lowpass", f: 1400, f2: 180, q: .8 });
+    const gt = out(0); env(gt, t, .003, .25, .5);
+    const th = osc("sine", 110, t, .3, gt); th.frequency.exponentialRampToValueAtTime(40, t + .22);
+  },
+  tick() {
+    if (!ac) return; const t = ac.currentTime + .005, o = out(.15);
+    const g1 = ac.createGain(); g1.connect(o); env(g1, t, .001, .07, .25); noise(t, .08, g1, { f: 1800, q: 6 });
+    const g2 = ac.createGain(); g2.connect(o); env(g2, t, .001, .09, .18); osc("sine", 740 * (1 + rand(-.02, .02)), t, .1, g2);
+  },
+  tap() {
+    if (!ac) return; const t = ac.currentTime + .005, o = out(.1);
+    const g = ac.createGain(); g.connect(o); env(g, t, .002, .09, .2);
+    const s = osc("triangle", 560, t, .1, g); s.frequency.exponentialRampToValueAtTime(380, t + .08);
+    const g2 = ac.createGain(); g2.connect(o); env(g2, t, .001, .03, .12); noise(t, .04, g2, { type: "highpass", f: 4000 });
+  },
+  whoosh() {
+    if (!ac) return; const t = ac.currentTime + .005, o = out(.3);
+    const g = ac.createGain(); g.connect(o); env(g, t, .15, .22, .12);
+    noise(t, .38, g, { f: 500, f2: 2400, q: 1.2 });
+    const g2 = ac.createGain(); g2.connect(o); env(g2, t + .12, .004, .4, .08);
+    osc("sine", 660 * (1 + rand(-.03, .03)), t + .12, .45, g2);
+  },
+  hum(p) {
+    if (!ac || !humG) return; const t = ac.currentTime;
+    humG.gain.setTargetAtTime(p > 0 ? .03 + .06 * p : 0, t, .06);
+    const f = 196 * Math.pow(2, p);
+    humA.frequency.setTargetAtTime(f, t, .05); humB.frequency.setTargetAtTime(f, t, .05);
+    humF.frequency.setTargetAtTime(700 + 1600 * p, t, .05);
+  }
+};
+
+/* ---------- state ---------- */
+const view = $("view"), ctx = view.getContext("2d"), vid = $("vid");
+const sc = document.createElement("canvas"), sctx = sc.getContext("2d", { willReadFrequently: true });
+const CELL = 5, SW = 80, HOLD = .55;
+let mode = "camera", state = "idle", raf = 0, last = 0, dt = 0, token = 0;
+let stream = null, mirrored = true, facing = "environment";
+let roundIdx = 0, score = 0, lives = 3, cleared = 0;
+let target = null, thr = 28, tTotal = 30, tLeft = 30, lock = 0, smoothDE = null, lastTick = 99, flash = 0;
+let lastName = "";
+const box = { x: 0, y: 0, has: false, sample: [128, 128, 128], ok: false };
+let best = 0;
+try { best = parseInt(localStorage.getItem("huehunt-best") || "0", 10) || 0; } catch (e) {}
+$("best").textContent = best;
+
+/* ---------- start screen fan ---------- */
+(function buildFan() {
+  const fan = $("fan"), chips = PALETTE.filter(p => p.k === "c").slice(0, 11);
+  const n = chips.length;
+  chips.forEach((p, i) => {
+    const d = document.createElement("div");
+    d.className = "pchip";
+    d.style.setProperty("--c", css(p.c));
+    d.style.setProperty("--i", i);
+    d.style.setProperty("--r", (-58 + (116 * i) / (n - 1)).toFixed(1) + "deg");
+    fan.appendChild(d);
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => fan.classList.add("open")));
+})();
+
+/* ---------- camera and demo source ---------- */
+function stopStream() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  vid.srcObject = null;
+}
+async function openCamera(face) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("unsupported");
+  const s = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: face }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
+  });
+  stopStream();
+  stream = s; vid.srcObject = s;
+  await vid.play();
+  const st = s.getVideoTracks()[0].getSettings ? s.getVideoTracks()[0].getSettings() : {};
+  mirrored = st.facingMode ? st.facingMode === "user" : true;
+  facing = face;
+}
+const demo = { cv: document.createElement("canvas"), blobs: [] };
+demo.cv.width = 640; demo.cv.height = 480;
+demo.ctx = demo.cv.getContext("2d");
+function initDemo() {
+  demo.blobs = [];
+  PALETTE.filter(p => p.k === "c").forEach(p => {
+    for (let k = 0; k < 2; k++) demo.blobs.push({
+      x: rand(0, 640), y: rand(0, 480), r: rand(40, 62), vx: rand(-34, 34), vy: rand(-34, 34),
+      c: p.c, rect: Math.random() < .45
+    });
+  });
+}
+function drawDemo(d) {
+  const g = demo.ctx;
+  const bg = g.createLinearGradient(0, 0, 640, 480);
+  bg.addColorStop(0, "#59606E"); bg.addColorStop(1, "#6D7485");
+  g.fillStyle = bg; g.fillRect(0, 0, 640, 480);
+  demo.blobs.forEach(b => {
+    b.x += b.vx * d; b.y += b.vy * d;
+    if (b.x < -80) b.x = 720; if (b.x > 720) b.x = -80;
+    if (b.y < -80) b.y = 560; if (b.y > 560) b.y = -80;
+    g.fillStyle = css(b.c);
+    g.beginPath();
+    if (b.rect) g.rect(b.x - b.r, b.y - b.r * .8, b.r * 2, b.r * 1.6);
+    else g.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = "rgba(255,255,255,.14)"; g.lineWidth = 3; g.stroke();
+  });
+}
+
+/* ---------- rounds ---------- */
+function pickColor() {
+  let pool = PALETTE.filter(p => (mode === "demo" ? p.k === "c" : (roundIdx >= 3 || p.k === "c")));
+  pool = pool.filter(p => p.n !== lastName);
+  const p = pick(pool);
+  lastName = p.n;
+  const rgb = jitter(p.c, p.k);
+  target = { name: p.n, rgb, lab: rgb2lab(rgb[0], rgb[1], rgb[2]) };
+  $("game").style.setProperty("--t", css(rgb));
+  $("swatch").style.setProperty("--t", css(rgb));
+  $("cname").textContent = p.n;
+}
+function drawLives() {
+  const el = $("lives"); el.innerHTML = "";
+  for (let i = 0; i < 3; i++) { const d = document.createElement("i"); if (i >= lives) d.className = "off"; el.appendChild(d); }
+}
+function hud() {
+  $("score").textContent = score;
+  $("round").textContent = roundIdx + 1;
+  drawLives();
+}
+function nextRound(first) {
+  if (!first) roundIdx++;
+  pickColor();
+  thr = Math.max(17, 28 - roundIdx * 1.2);
+  tTotal = tLeft = Math.max(14, 30 - roundIdx * 1.5);
+  lock = 0; smoothDE = null; box.has = false; lastTick = 99;
+  $("notch").style.left = ((1 - thr / 60) * 100).toFixed(1) + "%";
+  $("hint").textContent = "Keep looking";
+  $("meterFill").style.width = "0%";
+  $("meter").classList.remove("hit");
+  $("timeFill").classList.remove("low");
+  state = "playing";
+  hud();
+  sfx.whoosh();
+}
+function newGame() {
+  token++;
+  score = 0; lives = 3; cleared = 0; roundIdx = 0; lastName = "";
+  $("over").classList.add("hidden");
+  nextRound(true);
+}
+let toastTimer = 0;
+function toast(text, sub) {
+  const t = $("toast"), tt = $("toastText");
+  tt.textContent = text;
+  if (sub) { const s = document.createElement("small"); s.textContent = sub; tt.appendChild(s); }
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 1150);
+}
+function succeed() {
+  state = "between";
+  const rel = clamp(1 - (smoothDE || 0) / thr, 0, 1);
+  const pts = 100 + Math.round(tLeft * 5) + Math.round(rel * 50);
+  score += pts; cleared++;
+  flash = RM ? .25 : 1; box.ok = true;
+  sfx.hum(0); sfx.win();
+  toast("Found it", "+" + pts);
+  hud();
+  const tk = token;
+  setTimeout(() => { if (tk === token) { box.ok = false; nextRound(false); } }, 1350);
+}
+function miss(label) {
+  state = "between";
+  lives--;
+  sfx.hum(0); sfx.fail();
+  toast(label);
+  hud();
+  const tk = token;
+  setTimeout(() => {
+    if (tk !== token) return;
+    if (lives <= 0) gameOver(); else nextRound(false);
+  }, 1350);
+}
+function gameOver() {
+  state = "over";
+  let isBest = false;
+  if (score > best) {
+    best = score; isBest = true;
+    try { localStorage.setItem("huehunt-best", String(best)); } catch (e) {}
+  }
+  $("overText").textContent = "You found " + cleared + (cleared === 1 ? " color" : " colors") + " and scored " + score + "." + (isBest ? " That’s a new best." : " Your best is " + best + ".");
+  $("over").classList.remove("hidden");
+}
+
+/* ---------- main loop ---------- */
+function frame(t) {
+  raf = requestAnimationFrame(frame);
+  dt = Math.min(.1, (t - last) / 1000); last = t;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const cw = Math.round(view.clientWidth * dpr), ch = Math.round(view.clientHeight * dpr);
+  if (view.width !== cw || view.height !== ch) { view.width = cw; view.height = ch; }
+  let src = null;
+  if (mode === "demo") { drawDemo(dt); src = { el: demo.cv, w: 640, h: 480 }; }
+  else if (vid.readyState >= 2 && vid.videoWidth) src = { el: vid, w: vid.videoWidth, h: vid.videoHeight };
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cw, ch);
+  if (!src || !cw || !ch) return;
+
+  const scale = Math.max(cw / src.w, ch / src.h);
+  const sw = cw / scale, sh = ch / scale, sx = (src.w - sw) / 2, sy = (src.h - sh) / 2;
+  ctx.save();
+  if (mirrored) { ctx.translate(cw, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(src.el, sx, sy, sw, sh, 0, 0, cw, ch);
+  ctx.restore();
+
+  if (state === "playing") analyze(src, sx, sy, sw, sh, cw, ch);
+  overlay(cw, ch, dpr);
+}
+
+function analyze(src, sx, sy, sw, sh, cw, ch) {
+  const SH = Math.max(CELL * 4, Math.round(SW * ch / cw));
+  if (sc.width !== SW || sc.height !== SH) { sc.width = SW; sc.height = SH; }
+  sctx.save();
+  if (mirrored) { sctx.translate(SW, 0); sctx.scale(-1, 1); }
+  sctx.drawImage(src.el, sx, sy, sw, sh, 0, 0, SW, SH);
+  sctx.restore();
+  const d = sctx.getImageData(0, 0, SW, SH).data;
+  const cols = Math.floor(SW / CELL), rows = Math.floor(SH / CELL), n = CELL * CELL;
+  let bestE = 1e9, bi = 0, bj = 0, br = 0, bg = 0, bb = 0;
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    let r = 0, g = 0, b = 0;
+    for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) {
+      const k = ((j * CELL + y) * SW + i * CELL + x) * 4;
+      r += d[k]; g += d[k + 1]; b += d[k + 2];
+    }
+    r /= n; g /= n; b /= n;
+    const e = dE(rgb2lab(r, g, b), target.lab);
+    if (e < bestE) { bestE = e; bi = i; bj = j; br = r; bg = g; bb = b; }
+  }
+  smoothDE = smoothDE === null ? bestE : smoothDE + (bestE - smoothDE) * Math.min(1, dt * 8);
+  const tx = (bi + .5) * CELL / SW * cw, ty = (bj + .5) * CELL / SH * ch;
+  if (!box.has) { box.x = tx; box.y = ty; box.has = true; }
+  else { const k = 1 - Math.exp(-dt * 14); box.x += (tx - box.x) * k; box.y += (ty - box.y) * k; }
+  box.sample = [br, bg, bb];
+  box.cellPx = CELL / SW * cw;
+
+  // lock logic
+  if (smoothDE < thr) lock += dt; else lock = Math.max(0, lock - dt * 1.5);
+  sfx.hum(clamp(lock / HOLD, 0, 1) * (lock > 0 ? 1 : 0));
+
+  // timer
+  tLeft -= dt;
+  const tf = $("timeFill");
+  tf.style.transform = "scaleX(" + clamp(tLeft / tTotal, 0, 1).toFixed(4) + ")";
+  if (tLeft <= 5) {
+    tf.classList.add("low");
+    const sec = Math.ceil(tLeft);
+    if (sec !== lastTick && sec > 0) { lastTick = sec; sfx.tick(); }
+  }
+
+  // meter + hint
+  const clos = clamp(1 - smoothDE / 60, 0, 1), thrClos = 1 - thr / 60, rel = clos / thrClos;
+  $("meterFill").style.width = (clos * 100).toFixed(1) + "%";
+  $("meter").classList.toggle("hit", smoothDE < thr);
+  const h = rel < .6 ? "Keep looking" : rel < .85 ? "Getting warmer" : rel < 1 ? "Almost there" : "Hold steady";
+  if ($("hint").textContent !== h) $("hint").textContent = h;
+
+  if (lock >= HOLD) { succeed(); return; }
+  if (tLeft <= 0) { miss("Time’s up"); }
+}
+
+function brackets(cx, cy, half, len) {
+  const l = Math.min(len, half);
+  ctx.beginPath();
+  [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => {
+    const x = cx + sx * half, y = cy + sy * half;
+    ctx.moveTo(x - sx * l, y); ctx.lineTo(x, y); ctx.lineTo(x, y - sy * l);
+  });
+  ctx.stroke();
+}
+function overlay(cw, ch, dpr) {
+  if (box.has && (state === "playing" || state === "between")) {
+    const half = Math.max(24 * dpr, (box.cellPx || 40) * .9);
+    const rel = smoothDE === null ? 0 : clamp((1 - smoothDE / 60) / (1 - thr / 60), 0, 1.2);
+    const ok = box.ok || (smoothDE !== null && smoothDE < thr);
+    ctx.save();
+    ctx.globalAlpha = .4 + .6 * Math.min(1, rel);
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.lineWidth = 6 * dpr; ctx.strokeStyle = "rgba(0,0,0,.5)"; brackets(box.x, box.y, half, half * .55);
+    ctx.lineWidth = 3 * dpr; ctx.strokeStyle = ok ? "#7CFFB0" : "#fff"; brackets(box.x, box.y, half, half * .55);
+    // split disc: left is the target, right is what the camera sees there
+    const r = 10 * dpr;
+    ctx.fillStyle = css(target.rgb);
+    ctx.beginPath(); ctx.arc(box.x, box.y, r, Math.PI / 2, Math.PI * 1.5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = css(box.sample.map(Math.round));
+    ctx.beginPath(); ctx.arc(box.x, box.y, r, -Math.PI / 2, Math.PI / 2); ctx.closePath(); ctx.fill();
+    ctx.lineWidth = 2 * dpr; ctx.strokeStyle = "#fff";
+    ctx.beginPath(); ctx.arc(box.x, box.y, r, 0, Math.PI * 2); ctx.stroke();
+    if (lock > 0 && state === "playing") {
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 5 * dpr; ctx.strokeStyle = "rgba(0,0,0,.45)";
+      ctx.beginPath(); ctx.arc(box.x, box.y, half + 12 * dpr, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 4 * dpr; ctx.strokeStyle = "#7CFFB0";
+      ctx.beginPath(); ctx.arc(box.x, box.y, half + 12 * dpr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(lock / HOLD, 0, 1)); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  if (flash > 0) {
+    ctx.fillStyle = "rgba(255,255,255," + (flash * .5).toFixed(3) + ")";
+    ctx.fillRect(0, 0, cw, ch);
+    flash = Math.max(0, flash - dt * 2.5);
+  }
+}
+
+/* ---------- screens and controls ---------- */
+function say(t) { $("msg").textContent = t; }
+async function begin(m) {
+  initAudio(); sfx.tap(); say("");
+  if (m === "camera") {
+    try { await openCamera("environment"); }
+    catch (e) {
+      const blocked = e && (e.name === "NotAllowedError" || e.name === "SecurityError");
+      say(blocked || (e && e.message === "unsupported")
+        ? "The camera isn’t available here. Allow camera access, open this page in its own browser tab, or try the demo scene."
+        : "No camera was found. Try the demo scene instead.");
+      return;
+    }
+  } else { initDemo(); mirrored = false; }
+  mode = m;
+  $("start").classList.add("hidden");
+  $("game").classList.remove("hidden");
+  $("btnFlip").classList.toggle("hidden", m !== "camera");
+  newGame();
+  last = performance.now();
+  cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+}
+function toStart() {
+  token++; state = "idle"; sfx.hum(0);
+  cancelAnimationFrame(raf);
+  stopStream();
+  $("toast").classList.remove("on");
+  $("over").classList.add("hidden");
+  $("game").classList.add("hidden");
+  $("start").classList.remove("hidden");
+  $("best").textContent = best;
+}
+$("btnCam").addEventListener("click", () => begin("camera"));
+$("btnDemo").addEventListener("click", () => begin("demo"));
+$("btnQuit").addEventListener("click", () => { sfx.tap(); toStart(); });
+$("btnHome").addEventListener("click", () => { sfx.tap(); toStart(); });
+$("btnAgain").addEventListener("click", () => { sfx.tap(); newGame(); });
+$("btnSkip").addEventListener("click", () => { if (state === "playing") { sfx.tap(); miss("Skipped"); } });
+$("btnFlip").addEventListener("click", async () => {
+  sfx.tap();
+  try { await openCamera(facing === "environment" ? "user" : "environment"); }
+  catch (e) { toast("No other camera"); }
+});
+$("btnMute").addEventListener("click", () => {
+  muted = !muted;
+  if (master) master.gain.value = muted ? 0 : .8;
+  $("btnMute").textContent = muted ? "Sound off" : "Sound on";
+});
+})();
+</script>
+</body>
+</html>
